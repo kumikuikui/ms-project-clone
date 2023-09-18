@@ -1,0 +1,472 @@
+<div class="main-content">
+  <div class="expansion-panel" [class.mat-elevation-z8]="true">
+    <mat-accordion>
+      <mat-expansion-panel expanded="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title> <strong>Option</strong> </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="option-container">
+          <div class="checkbox-list">
+            Hide/Show Column:
+            <app-checkbox
+              title="Responsible"
+              (onChange)="showHideColumn($event, 'Responsible')"
+              [isChecked]="checkAll"
+              [disabled]="checkAll"
+            ></app-checkbox>
+            <app-checkbox
+              title="Start Date"
+              (onChange)="showHideColumn($event, 'Start Date')"
+              [isChecked]="checkAll"
+              [disabled]="checkAll"
+            ></app-checkbox>
+            <app-checkbox
+              title="End Date"
+              (onChange)="showHideColumn($event, 'End Date')"
+              [isChecked]="checkAll"
+              [disabled]="checkAll"
+            ></app-checkbox>
+            <app-checkbox
+              title="Days"
+              (onChange)="showHideColumn($event, 'Days')"
+              [isChecked]="checkAll"
+              [disabled]="checkAll"
+            ></app-checkbox>
+            <app-checkbox
+              title="Progress"
+              (onChange)="showHideColumn($event, 'Progress')"
+              [isChecked]="checkAll"
+              [disabled]="checkAll"
+            ></app-checkbox>
+            <button
+              mat-stroked-button
+              *ngIf="!checkAll"
+              (click)="showHideColumn(true, 'All')"
+            >
+              Show All
+            </button>
+            <button
+              mat-stroked-button
+              *ngIf="checkAll"
+              (click)="showHideColumn(true, 'Hide')"
+            >
+              Hide All
+            </button>
+          </div>
+          <div class="filters">
+            <app-select-box #selectBox
+              [array]="ganttChartStatusFilter"
+              title="Status Filter"
+              (selectedValueChange)="filterStatus($event)"
+            ></app-select-box>
+            <app-date-range-picker #dateRangePicker
+              (dateRange)="filterDateRange($event)"
+            ></app-date-range-picker>
+            <button mat-stroked-button (click)="resetFilter()">Reset</button>
+          </div>
+          <div
+            class="legend"
+            [class.mat-elevation-z4]="true"
+            *ngIf="showLegend"
+          >
+            <span class="on-track">On-Track</span>
+            <span class="slight-delay">Slight Delay</span>
+            <span class="significant-delay">Significant Delay</span>
+            <span class="off-track">Off-Track</span>
+          </div>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+  <!-- ------------------------------------------------------------------------------------------------------------------ -->
+  <div class="table-container" [ngStyle]="fontSize" *ngIf="!showGanttChart">
+    <table>
+      <thead>
+        <tr>
+          <ng-container *ngFor="let label of ganttChart.header">
+            <th *ngIf="label.show">
+              <strong>{{ label.title }}</strong>
+            </th>
+          </ng-container>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let data of ganttChart.data">
+          <tr class="activity" (click)="collapse(data)">
+            <td>
+              <div class="chart-row-item">
+                <fa-icon [icon]="'square-plus'" *ngIf="!data.expand"></fa-icon>
+                <fa-icon [icon]="'square-minus'" *ngIf="data.expand"></fa-icon>
+                <small
+                  [matTooltip]="data.activity"
+                  [matTooltipPosition]="'right'"
+                  >{{
+                    (data.stage + " | " + data.activity).length > 90
+                      ? ((data.stage !== "" ? data.stage + " | " : "") +
+                          data.activity | slice: 0:90) + "..."
+                      : (data.stage !== "" ? data.stage + " | " : "") +
+                        data.activity
+                  }}
+                </small>
+                <span
+                  class="chart-row-item-header-status"
+                  [class.mat-elevation-z4]="true"
+                  [matTooltip]="data.remarks"
+                  [matTooltipPosition]="'right'"
+                  matTooltipClass="tooltip"
+                  [ngClass]="{
+                    'off-track': data.status === '4',
+                    'significant-delay': data.status === '3',
+                    'slight-delay': data.status === '2',
+                    'on-track': data.status === '1'
+                  }"
+                ></span>
+              </div>
+            </td>
+            <td *ngIf="ganttChart.header[1].show"></td>
+            <td *ngIf="ganttChart.header[2].show">
+              <small>{{ data.startDate | date: "MM-dd-yyyy" }}</small>
+            </td>
+            <td *ngIf="ganttChart.header[3].show">
+              <small>{{ data.endDate | date: "MM-dd-yyyy" }}</small>
+            </td>
+            <td *ngIf="ganttChart.header[4].show">
+              <small>{{
+                getDaysBetweenDates(data.startDate, data.endDate)
+              }}</small>
+            </td>
+            <td *ngIf="ganttChart.header[5].show">
+              <small>{{ data.progress }}%</small>
+            </td>
+          </tr>
+          <ng-container *ngFor="let item of data.subActivity">
+            <tr *ngIf="data.expand">
+              <td>
+                <div class="chart-row-item">
+                  <small>{{ item.activity }}</small>
+                  <span
+                    class="chart-row-item-header-status"
+                    [matTooltip]="item.remarks"
+                    [matTooltipPosition]="'right'"
+                    [class.mat-elevation-z4]="true"
+                    [ngClass]="{
+                      'off-track': item.status === '4',
+                      'slight-delay': item.status === '3',
+                      'significant-delay': item.status === '2',
+                      'on-track': item.status == '1'
+                    }"
+                  ></span>
+                </div>
+              </td>
+              <td *ngIf="ganttChart.header[1].show">
+                <small>{{ item.responsible }}</small>
+              </td>
+              <td *ngIf="ganttChart.header[2].show">
+                <small>{{ item.startDate | date: "MM-dd-yyyy" }}</small>
+              </td>
+              <td *ngIf="ganttChart.header[3].show">
+                <small>{{ item.endDate | date: "MM-dd-yyyy" }}</small>
+              </td>
+              <td *ngIf="ganttChart.header[4].show">
+                <small>{{
+                  getDaysBetweenDates(item.startDate, item.endDate)
+                }}</small>
+              </td>
+              <td *ngIf="ganttChart.header[5].show">
+                <small>{{ item.progress }}%</small>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-container>
+      </tbody>
+    </table>
+  </div>
+  <!-- ------------------------------------------------------------------------------------------------------------------ -->
+  <ng-scrollbar
+    #scrollable
+    class="container"
+    track="all"
+    [ngStyle]="fontSize"
+    *ngIf="showGanttChart"
+  >
+    <div class="gantt-chart-header">
+      <div class="left-panel-header">
+        <ng-container *ngFor="let label of ganttChart.header">
+          <div class="chart-row-item" *ngIf="label.show">
+            <strong>{{ label.title }}</strong>
+          </div>
+        </ng-container>
+      </div>
+      <div class="right-panel-header">
+        <div
+          class="chart-row chart-period"
+          [ngStyle]="generateColumn(dateRange.length)"
+        >
+          <span
+            class="calendar-header"
+            *ngFor="let month of monthRange"
+            [ngStyle]="renderMonth(month.date)"
+            ><strong>{{ month.name }}</strong></span
+          >
+          <span *ngFor="let date of dateRange">
+            <table>
+              <tbody
+                id="{{ date }}"
+                [ngStyle]="{
+                  background: date === currentDate ? '#ff761b' : ''
+                }"
+              >
+                <tr>
+                  <td>{{ date | date: "d" }}</td>
+                </tr>
+                <tr
+                  [ngStyle]="{
+                    background: date === currentDate ? '#eaeaea' : ''
+                  }"
+                >
+                  <td>{{ (date | date: "EEEE")?.substring(0, 1) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gantt-chart-content">
+      <div class="left-panel-content">
+        <div class="chart-row-data" *ngFor="let data of ganttChart.data">
+          <div
+            class="chart-row-item-header"
+            (click)="collapse(data)"
+            matRipple
+            [matRippleCentered]="true"
+            [matRippleDisabled]="false"
+            [matRippleUnbounded]="false"
+            [matRippleRadius]="0"
+          >
+            <div class="chart-row-item">
+              <fa-icon [icon]="'square-plus'" *ngIf="!data.expand"></fa-icon>
+              <fa-icon [icon]="'square-minus'" *ngIf="data.expand"></fa-icon>
+              <small [matTooltip]="data.activity" [matTooltipPosition]="'right'"
+                >{{
+                  (data.stage + " | " + data.activity).length > 90
+                    ? ((data.stage !== "" ? data.stage + " | " : "") +
+                        data.activity | slice: 0:90) + "..."
+                    : (data.stage !== "" ? data.stage + " | " : "") +
+                      data.activity
+                }}
+              </small>
+              <span
+                class="chart-row-item-header-status"
+                [ngClass]="{
+                  'off-track': data.status === '4',
+                  'slight-delay': data.status === '3',
+                  'significant-delay': data.status === '2',
+                  'on-track': data.status == '1'
+                }"
+              ></span>
+            </div>
+            <div class="chart-row-item" *ngIf="ganttChart.header[1].show"></div>
+            <div class="chart-row-item" *ngIf="ganttChart.header[2].show">
+              <small>{{ data.startDate | date: "M-dd-yyyy" }}</small>
+            </div>
+            <div class="chart-row-item" *ngIf="ganttChart.header[3].show">
+              <small>{{ data.endDate | date: "M-dd-yyyy" }}</small>
+            </div>
+            <div class="chart-row-item" *ngIf="ganttChart.header[4].show">
+              <small>{{
+                getDaysBetweenDates(data.startDate, data.endDate)
+              }}</small>
+            </div>
+            <div class="chart-row-item" *ngIf="ganttChart.header[5].show">
+              <mat-progress-spinner
+                [strokeWidth]="3"
+                [diameter]="37"
+                [color]="'primary'"
+                [mode]="'determinate'"
+                [value]="data.progress"
+              >
+              </mat-progress-spinner>
+              <small>{{ data.progress }}%</small>
+            </div>
+          </div>
+          <div *ngIf="data.expand">
+            <div *ngFor="let item of data.subActivity">
+              <div class="chart-row-bars" (click)="scroll(item.startDate)">
+                <div class="chart-row-item">
+                  <!-- <fa-icon [icon]="'circle'"></fa-icon> -->
+                  <small>{{ item.activity }}</small>
+                  <span
+                    class="chart-row-item-header-status"
+                    [ngClass]="{
+                      'off-track': item.status === '4',
+                      'slight-delay': item.status === '3',
+                      'significant-delay': item.status === '2',
+                      'on-track': item.status == '1'
+                    }"
+                  ></span>
+                </div>
+                <div class="chart-row-item" *ngIf="ganttChart.header[1].show">
+                  <small>{{ item.responsible }}</small>
+                </div>
+                <div class="chart-row-item" *ngIf="ganttChart.header[2].show">
+                  <small>{{ item.startDate | date: "M-dd-yyyy" }}</small>
+                </div>
+                <div class="chart-row-item" *ngIf="ganttChart.header[3].show">
+                  <small>{{ item.endDate | date: "M-dd-yyyy" }}</small>
+                </div>
+                <div class="chart-row-item" *ngIf="ganttChart.header[4].show">
+                  <small>{{
+                    getDaysBetweenDates(item.startDate, item.endDate)
+                  }}</small>
+                </div>
+                <div class="chart-row-item" *ngIf="ganttChart.header[5].show">
+                  <mat-progress-spinner
+                    [strokeWidth]="3"
+                    [diameter]="37"
+                    [color]="'primary'"
+                    [mode]="'determinate'"
+                    [value]="item.progress"
+                  >
+                  </mat-progress-spinner>
+                  <small>{{ item.progress }}%</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chart">
+        <div class="chart-row-data" *ngFor="let data of ganttChart.data">
+          <div
+            class="chart-row-item-header"
+            (click)="collapse(data)"
+            matRipple
+            [matRippleCentered]="false"
+            [matRippleDisabled]="false"
+            [matRippleUnbounded]="false"
+            [matRippleRadius]="0"
+          >
+            <div class="" [ngStyle]="generateColumn(dateRange.length)">
+              <span
+                [title]="data.startDate + ' - ' + data.endDate"
+                class=""
+                [ngStyle]="renderRow(data.startDate, data.endDate)"
+              ></span>
+            </div>
+          </div>
+          <div *ngIf="data.expand">
+            <div class="chart-row" *ngFor="let item of data.subActivity">
+              <ul
+                class="chart-row-bars"
+                [ngStyle]="generateColumn(dateRange.length)"
+              >
+                <li
+                  [title]="item.startDate + ' - ' + item.endDate"
+                  class="chart-li-one"
+                  [ngStyle]="renderRow(item.startDate, item.endDate)"
+                >
+                  <mat-progress-bar
+                    mode="determinate"
+                    [color]="'red'"
+                    [value]="item.progress"
+                  ></mat-progress-bar>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div
+          class="chart-row chart-lines"
+          [ngStyle]="generateColumn(dateRange.length)"
+        >
+          <ng-container *ngFor="let date of dateRange">
+            <span [ngClass]="{ today: date === currentDate }"></span>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </ng-scrollbar>
+  <!-- -------------------------------------------------------------------------------------------------------------------- -->
+  <div class="gantt-chart-nav" [class.mat-elevation-z8]="true">
+    <div class="setting">
+      <button mat-button (click)="expandAll()">Expand All</button>
+      <button mat-button (click)="collapseAll()">Collapse All</button>
+    </div>
+    <div
+      class="navigation"
+      [ngStyle]="{ visibility: showGanttChart ? '' : 'hidden' }"
+    >
+      <button mat-mini-fab color="warn">
+        <fa-icon
+          [icon]="'angles-left'"
+          (click)="moveToStart()"
+          matTooltip="Go to start date"
+        ></fa-icon>
+      </button>
+      <button mat-mini-fab color="warn">
+        <fa-icon
+          [icon]="'circle-left'"
+          (click)="moveLeft()"
+          matTooltip="Scroll Left"
+        ></fa-icon>
+      </button>
+      <button
+        mat-mini-fab
+        color="warn"
+        (click)="scrollToToday()"
+        matTooltip="Go to Today"
+      >
+        <fa-icon [icon]="'calendar-day'"></fa-icon>
+      </button>
+      <button
+        mat-mini-fab
+        color="warn"
+        (click)="moveRight()"
+        matTooltip="Scroll Right"
+      >
+        <fa-icon [icon]="'circle-right'"></fa-icon>
+      </button>
+      <button
+        mat-mini-fab
+        color="warn"
+        (click)="moveToEnd()"
+        matTooltip="Go to last date"
+      >
+        <fa-icon [icon]="'angles-right'"></fa-icon>
+      </button>
+    </div>
+    <div class="setting">
+      <button
+        mat-mini-fab
+        color="warn"
+        (click)="toggleGanttChart()"
+        matTooltip="Show/Hide Gantt Chart"
+      >
+        <fa-icon [icon]="'calendar-week'"></fa-icon>
+      </button>
+      <!-- <button
+        mat-mini-fab
+        color="warn"
+        (click)="toggleLegend()"
+        matTooltip="Show/Hide Legend"
+      >
+        <fa-icon [icon]="'circle-info'"></fa-icon>
+      </button> -->
+    </div>
+    <div class="setting">
+      <button
+        mat-mini-fab
+        color="warn"
+        (click)="zoomOut()"
+        matTooltip="Zoom Out"
+      >
+        <fa-icon [icon]="'magnifying-glass-minus'"></fa-icon>
+      </button>
+      <button mat-mini-fab color="warn" (click)="zoomIn()" matTooltip="Zoom In">
+        <fa-icon [icon]="'magnifying-glass-plus'"></fa-icon>
+      </button>
+    </div>
+  </div>
+</div>
